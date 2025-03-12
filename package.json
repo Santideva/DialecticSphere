@@ -1,0 +1,17 @@
+{
+  "name": "nuchladni",
+  "version": "1.0.0",
+  "description": "DialecticSphere is a vanilla JavaScript project that visualizes a dynamically deformable 3D sphere with an orbiting camera and interactive slider controls. Inspired by both geometric exploration and dialectical transformation, this project offers an engaging way to experiment with 3D deformations and camera movements directly in the browser.",
+  "main": "camera.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "live-server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

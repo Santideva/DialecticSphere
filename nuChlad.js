@@ -1,5 +1,7 @@
 // Import camera module components from your camera.js file
 import { Camera, CameraController, Vector3, PathGenerator } from './camera.js';
+// Import the ShapeDeformer and presets
+import { ShapeDeformer, presetConfigurations } from './shapeDeformer.js';
 
 // Set up canvas and context
 const canvas = document.getElementById('canvas');
@@ -12,28 +14,123 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Get UI controls and value displays
-const mode1Slider = document.getElementById('mode1');
-const mode2Slider = document.getElementById('mode2');
-const mode3Slider = document.getElementById('mode3');
-const rotXSlider  = document.getElementById('rotX');
-// repurposed: rotY now controls orbit speed rather than a direct rotation
-const rotYSlider  = document.getElementById('rotY');
+// Get static UI controls and value displays (the ones that aren't for deformation modes)
+const rotXSlider = document.getElementById('rotX');
+const rotYSlider = document.getElementById('rotY');
 const depthSlider = document.getElementById('depth');
 
-const mode1Value = document.getElementById('mode1Value');
-const mode2Value = document.getElementById('mode2Value');
-const mode3Value = document.getElementById('mode3Value');
-const rotXValue  = document.getElementById('rotXValue');
-const rotYValue  = document.getElementById('rotYValue');
+const rotXValue = document.getElementById('rotXValue');
+const rotYValue = document.getElementById('rotYValue');
 const depthValue = document.getElementById('depthValue');
 
-// Update display values when sliders change
-mode1Slider.addEventListener('input', () => { mode1Value.textContent = mode1Slider.value; });
-mode2Slider.addEventListener('input', () => { mode2Value.textContent = mode2Slider.value; });
-mode3Slider.addEventListener('input', () => { mode3Value.textContent = mode3Slider.value; });
-rotXSlider.addEventListener('input',  () => { rotXValue.textContent  = rotXSlider.value; });
-depthSlider.addEventListener('input', () => { depthValue.textContent = depthSlider.value; });
+// Parameters for our deformable 3D sphere
+const baseRadius = 200;
+const numPointsTheta = 40;  // Resolution along the equator
+const numPointsPhi = 20;    // Resolution from pole to pole
+
+// Initialize the ShapeDeformer with the same base radius
+const shapeDeformer = new ShapeDeformer(baseRadius);
+
+// Reference to the controls container
+const controlsContainer = document.querySelector('.controls');
+
+// Array to store slider references
+const modeSliders = [];
+const modeValues = [];
+
+// Function to set up the UI for all deformation modes
+function setupDeformationModeUI() {
+  // Get existing mode sliders (first 3)
+  const existingModeSliders = [
+    document.getElementById('mode1'),
+    document.getElementById('mode2'),
+    document.getElementById('mode3')
+  ];
+  
+  const existingModeValues = [
+    document.getElementById('mode1Value'),
+    document.getElementById('mode2Value'),
+    document.getElementById('mode3Value')
+  ];
+  
+  // Connect existing sliders to the first 3 modes
+  for (let i = 0; i < 3; i++) {
+    if (i < shapeDeformer.modes.length) {
+      existingModeSliders[i].value = shapeDeformer.modes[i].amplitude;
+      existingModeValues[i].textContent = existingModeSliders[i].value;
+      
+      // Store references
+      modeSliders[i] = existingModeSliders[i];
+      modeValues[i] = existingModeValues[i];
+      
+      // Add event listener
+      existingModeSliders[i].addEventListener('input', () => {
+        modeValues[i].textContent = modeSliders[i].value;
+        shapeDeformer.setAmplitude(i, parseFloat(modeSliders[i].value));
+      });
+    }
+  }
+  
+  // Create new sliders for additional modes (after mode3)
+  for (let i = 3; i < shapeDeformer.modes.length; i++) {
+    const mode = shapeDeformer.modes[i];
+    
+    // Create container
+    const sliderContainer = document.createElement('div');
+    sliderContainer.className = 'slider-container';
+    
+    // Create label
+    const label = document.createElement('label');
+    label.textContent = `${mode.name}:`;
+    label.setAttribute('for', `mode${i+1}`);
+    
+    // Create slider
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = `mode${i+1}`;
+    slider.min = '0';
+    slider.max = '50';
+    slider.value = mode.amplitude;
+    slider.step = '1';
+    
+    // Create value display
+    const valueDisplay = document.createElement('span');
+    valueDisplay.id = `mode${i+1}Value`;
+    valueDisplay.className = 'value-display';
+    valueDisplay.textContent = slider.value;
+    
+    // Store references
+    modeSliders[i] = slider;
+    modeValues[i] = valueDisplay;
+    
+    // Add event listener
+    slider.addEventListener('input', () => {
+      valueDisplay.textContent = slider.value;
+      shapeDeformer.setAmplitude(i, parseFloat(slider.value));
+    });
+    
+    // Append elements to container
+    sliderContainer.appendChild(label);
+    sliderContainer.appendChild(slider);
+    sliderContainer.appendChild(valueDisplay);
+    
+    // Insert the new slider container before the rotX slider container
+    const rotXContainer = rotXSlider.parentElement;
+    controlsContainer.insertBefore(sliderContainer, rotXContainer);
+  }
+}
+
+// Setup UI for all deformation modes
+setupDeformationModeUI();
+
+// Update the static slider event listeners
+rotXSlider.addEventListener('input', () => { 
+  rotXValue.textContent = rotXSlider.value; 
+});
+
+depthSlider.addEventListener('input', () => { 
+  depthValue.textContent = depthSlider.value; 
+});
 
 // Create and configure the camera from camera.js
 const camera = new Camera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -55,49 +152,12 @@ rotYSlider.addEventListener('input', () => {
   rotYValue.textContent = rotYSlider.value;
 });
 
-// Parameters for our deformable 3D sphere
-const baseRadius = 200;
-const numPointsTheta = 40;  // Resolution along the equator
-const numPointsPhi = 20;    // Resolution from pole to pole
-
 // Define a light direction (normalized)
 const lightDir = { x: 0.5, y: -0.5, z: 0.7 };
 const lightLength = Math.sqrt(lightDir.x ** 2 + lightDir.y ** 2 + lightDir.z ** 2);
 lightDir.x /= lightLength;
 lightDir.y /= lightLength;
 lightDir.z /= lightLength;
-
-// Generate sphere points with deformation based on slider-controlled amplitudes
-function createSpherePoints() {
-  const points = [];
-  const A1 = parseFloat(mode1Slider.value);
-  const A2 = parseFloat(mode2Slider.value);
-  const A3 = parseFloat(mode3Slider.value);
-  
-  for (let j = 0; j <= numPointsPhi; j++) {
-    const phi = j * Math.PI / numPointsPhi;
-    const row = [];
-    
-    for (let i = 0; i <= numPointsTheta; i++) {
-      const theta = i * 2 * Math.PI / numPointsTheta;
-      
-      // Compute the deformation from the three modes
-      const deformation =
-        A1 * Math.sin(3 * theta) * Math.sin(2 * phi) +
-        A2 * Math.sin(5 * theta) * Math.sin(3 * phi) +
-        A3 * Math.sin(7 * theta) * Math.sin(phi);
-      
-      const r = baseRadius + deformation;
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.sin(phi) * Math.sin(theta);
-      const z = r * Math.cos(phi);
-      row.push({ x, y, z });
-    }
-    points.push(row);
-  }
-  
-  return points;
-}
 
 // A rotation function that applies a manual X rotation and a Y rotation derived from the camera
 function rotatePoint(point, angleX, angleY) {
@@ -161,7 +221,9 @@ function projectPoint(point, depth) {
 // Render the deformed sphere by converting its grid into triangles
 function drawShape(rotX, camAngle, depth) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const spherePoints = createSpherePoints();
+  
+  // Use the ShapeDeformer to create sphere points
+  const spherePoints = shapeDeformer.createDeformedSphere(numPointsTheta, numPointsPhi);
   const triangles = [];
   
   // Build triangles from the grid of sphere points
@@ -236,6 +298,55 @@ toggleButton.addEventListener('click', () => {
     camera.stopPath();
   }
 });
+
+// Add preset selector dropdown
+const presetSelector = document.createElement('select');
+presetSelector.style.position = 'absolute';
+presetSelector.style.top = '50px';
+presetSelector.style.right = '10px';
+presetSelector.style.zIndex = '101';
+
+// Add preset options
+for (const presetKey in presetConfigurations) {
+  const option = document.createElement('option');
+  option.value = presetKey;
+  option.textContent = presetConfigurations[presetKey].name;
+  presetSelector.appendChild(option);
+}
+
+// Handle preset selection change
+presetSelector.addEventListener('change', () => {
+  const selectedPreset = presetConfigurations[presetSelector.value];
+  shapeDeformer.applyPreset(selectedPreset);
+  
+  // Update all slider values to match preset
+  for (let i = 0; i < shapeDeformer.modes.length; i++) {
+    if (modeSliders[i]) {
+      modeSliders[i].value = shapeDeformer.modes[i].amplitude;
+      modeValues[i].textContent = modeSliders[i].value;
+    }
+  }
+});
+
+document.body.appendChild(presetSelector);
+
+// Add reset button to set all deformation modes to zero
+const resetButton = document.createElement('button');
+resetButton.textContent = 'Reset Deformations';
+resetButton.style.position = 'absolute';
+resetButton.style.top = '90px';
+resetButton.style.right = '10px';
+resetButton.style.zIndex = '101';
+resetButton.addEventListener('click', () => {
+  for (let i = 0; i < shapeDeformer.modes.length; i++) {
+    shapeDeformer.setAmplitude(i, 0);
+    if (modeSliders[i]) {
+      modeSliders[i].value = 0;
+      modeValues[i].textContent = '0';
+    }
+  }
+});
+document.body.appendChild(resetButton);
 
 // Animation loop
 let lastTime = performance.now();
