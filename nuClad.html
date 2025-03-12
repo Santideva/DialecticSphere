@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3D Shape Deformation - Vanilla JS</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+      canvas {
+        display: block;
+        background-color: #f0f0f0;
+      }
+      .controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .slider-container {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 80px;
+      }
+      input[type="range"] {
+        width: 150px;
+        vertical-align: middle;
+      }
+      .value-display {
+        display: inline-block;
+        width: 30px;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+      <div class="slider-container">
+        <label for="mode1">Mode 1:</label>
+        <input type="range" id="mode1" min="0" max="50" value="25" step="1" />
+        <span id="mode1Value" class="value-display">25</span>
+      </div>
+      <div class="slider-container">
+        <label for="mode2">Mode 2:</label>
+        <input type="range" id="mode2" min="0" max="50" value="15" step="1" />
+        <span id="mode2Value" class="value-display">15</span>
+      </div>
+      <div class="slider-container">
+        <label for="mode3">Mode 3:</label>
+        <input type="range" id="mode3" min="0" max="50" value="10" step="1" />
+        <span id="mode3Value" class="value-display">10</span>
+      </div>
+      <div class="slider-container">
+        <label for="rotX">Rotation X:</label>
+        <input
+          type="range"
+          id="rotX"
+          min="-100"
+          max="100"
+          value="20"
+          step="1"
+        />
+        <span id="rotXValue" class="value-display">20</span>
+      </div>
+      <div class="slider-container">
+        <label for="rotY">Rotation Y:</label>
+        <input
+          type="range"
+          id="rotY"
+          min="-100"
+          max="100"
+          value="40"
+          step="1"
+        />
+        <span id="rotYValue" class="value-display">40</span>
+      </div>
+      <div class="slider-container">
+        <label for="depth">Depth:</label>
+        <input type="range" id="depth" min="0" max="200" value="100" step="1" />
+        <span id="depthValue" class="value-display">100</span>
+      </div>
+    </div>
+    <script type="module" src="nuChlad.js"></script>
+  </body>
+</html>
